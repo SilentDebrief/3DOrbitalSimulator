@@ -18,6 +18,7 @@ timestep = 60 #10 hours
 resolution = 100
 planets = []
 paused = False # is sim paused? 
+massScaleFactor = 1e19
 
 def genSphere(radius, xCenter,yCenter,zCenter,resolution,):
         u = np.linspace(0, 2 * np.pi, resolution)
@@ -59,7 +60,7 @@ def plot():
 
     global planets
     planets = []
-
+    
     if firstPlanetActive.get():
         #region statements
         radius = firstPlanetRadiusEntry.get()
@@ -75,7 +76,8 @@ def plot():
         if checkPlanetInputVals(radius,mass,xPos,yPos,zPos,xVel,yVel,zVel) == True: 
             velocity = [float(xVel),float(yVel),float(zVel)]
             position = [float(xPos),float(yPos),float(zPos)]
-            planets.append(Planet("Planet 1",radius,mass,position,velocity))
+            scaledMass = float(mass)*massScaleFactor
+            planets.append(Planet("Planet 1",radius,scaledMass,position,velocity))
             genSphere(float(radius),float(xPos), float(yPos), float(zPos),resolution)
 
     if secondPlanetActive.get():
@@ -93,7 +95,8 @@ def plot():
         if checkPlanetInputVals(radius,mass,xPos,yPos,zPos,xVel,yVel,zVel) == True: 
             velocity = [float(xVel),float(yVel),float(zVel)]
             position = [float(xPos),float(yPos),float(zPos)]
-            planets.append(Planet("Planet 2",float(radius),float(mass),position,velocity))
+            scaledMass = float(mass)*massScaleFactor
+            planets.append(Planet("Planet 2",float(radius),scaledMass,position,velocity))
             genSphere(float(radius),float(xPos), float(yPos), float(zPos),resolution)
     
     if thirdPlanetActive.get():
@@ -111,7 +114,8 @@ def plot():
         if checkPlanetInputVals(radius,mass,xPos,yPos,zPos,xVel,yVel,zVel) == True: 
             velocity = [float(xVel),float(yVel),float(zVel)]
             position = [float(xPos),float(yPos),float(zPos)]
-            planets.append(Planet("Planet 3",radius,mass,position,velocity))
+            scaledMass = float(mass)*massScaleFactor
+            planets.append(Planet("Planet 3",radius,scaledMass,position,velocity))
             genSphere(float(radius),float(xPos), float(yPos), float(zPos),resolution)
     
     canvas.draw()
@@ -129,8 +133,14 @@ def RunSimulation():
             time.sleep(0.1)
         else: 
             for planet in planets:
+                totalForce = np.array([0.0,0.0,0.0])
+                for otherPlanet in planets: 
+                    if planet is not otherPlanet: 
+                        force = planet.GravitationalForce(otherPlanet)
+                        totalForce += force
+                planet.updateVelocity(totalForce)
                 planet.updatePosition()
-        # Update the plot with new positions
+            
 
         #Resets/keeps setting on axes
         ax.clear()
@@ -149,14 +159,6 @@ def RunSimulation():
         root.update()  
         time.sleep(0.01)  
 
-#region Physics Formulas
-
-def GravitationalForce(mass1,mass2,distance): 
-    G = 6.67430e-11
-    return ((G*mass1*mass2)/distance**2)
-    
-#endregion Physics Formulas
-
 class Planet:
     def __init__(self, name, radius, mass, position, velocity):
         self.name = name
@@ -170,8 +172,22 @@ class Planet:
         self.position += self.velocity * timestep
         self.history.append(self.position.copy())
 
-    def calculateDistance(self, other_planet):
-        return np.linalg.norm(self.position - other_planet.position)
+    def GravitationalForce(self,otherPlanet): 
+        G = 6.67430e-11
+        r = self.calculateDistance(otherPlanet)
+        if r == 0: 
+            return np.array([0.0,0.0,0.0]) #avoids division by 0
+
+        forceMagnitude = (G*float(self.mass)*float(otherPlanet.mass))/r**2
+        forceDirection = (otherPlanet.position-self.position)/r
+        return forceMagnitude*forceDirection
+    
+    def updateVelocity(self,force): 
+        acceleration = force/float(self.mass)
+        self.velocity += acceleration * timestep
+
+    def calculateDistance(self, otherPlanet):
+        return np.linalg.norm(self.position - otherPlanet.position)
 
     def draw(self, ax):
         genSphere(float(self.radius), float(self.position[0]), float(self.position[1]), float(self.position[2]), resolution)
