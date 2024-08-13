@@ -1,6 +1,7 @@
 from ast import Or
 from turtle import width
 import matplotlib
+import time
 import numpy as np 
 import matplotlib.pyplot as plt
 import tkinter as tk
@@ -10,6 +11,13 @@ from matplotlib import style
 from mpl_toolkits.mplot3d import Axes3D
 from tkinter import messagebox
 
+radiusUpperLim = 100000
+radiusLowerLim = 0 
+plotSize = 200000
+timestep = 60 #10 hours
+resolution = 100
+planets = []
+paused = False # is sim paused? 
 
 def genSphere(radius, xCenter,yCenter,zCenter,resolution,):
         u = np.linspace(0, 2 * np.pi, resolution)
@@ -22,11 +30,7 @@ def genSphere(radius, xCenter,yCenter,zCenter,resolution,):
         z = radius * np.cos(v) + zCenter
         ax.plot_surface(x,y,z)
 
-radiusUpperLim = 20
-radiusLowerLim = 0 
-plotSize = 200
-
-def checkPlanetInputVals(radius,mass,xPos,yPos,zPos): 
+def checkPlanetInputVals(radius,mass,xPos,yPos,zPos,xVel,yVel,zVel): 
     try: 
         radius = float(radius)
         if radius > radiusUpperLim or radius < radiusLowerLim:
@@ -35,14 +39,17 @@ def checkPlanetInputVals(radius,mass,xPos,yPos,zPos):
         xPos = float(xPos)
         yPos = float(yPos)
         zPos = float(zPos)
+        xVel = float(xVel)
+        yVel = float(yVel)
+        zVel = float(zVel)
+
         return True
     except ValueError as e: 
         tk.messagebox.showerror("Input Error", str(e))
         return False
 
-
-resolution = 100
 def plot():
+
     ax.clear() 
     halfPlotSize = plotSize / 2
     ax.set_xlim([-halfPlotSize, halfPlotSize])
@@ -50,38 +57,129 @@ def plot():
     ax.set_zlim([-halfPlotSize, halfPlotSize])
     ax.set_box_aspect([1, 1, 1])
 
-    if firstPlanetActive:
+    global planets
+    planets = []
+
+    if firstPlanetActive.get():
+        #region statements
         radius = firstPlanetRadiusEntry.get()
         mass = firstPlanetMassEntry.get()
         xPos = firstPlanetXPositionEntry.get()
         yPos = firstPlanetYPositionEntry.get()
         zPos = firstPlanetZPositionEntry.get()
+        xVel = firstPlanetXVelocityEntry.get()
+        yVel = firstPlanetYVelocityEntry.get()
+        zVel = firstPlanetZVelocityEntry.get() 
+        #endregion
 
-        if checkPlanetInputVals(radius,mass,xPos,yPos,zPos) == True: 
+        if checkPlanetInputVals(radius,mass,xPos,yPos,zPos,xVel,yVel,zVel) == True: 
+            velocity = [float(xVel),float(yVel),float(zVel)]
+            position = [float(xPos),float(yPos),float(zPos)]
+            planets.append(Planet("Planet 1",radius,mass,position,velocity))
             genSphere(float(radius),float(xPos), float(yPos), float(zPos),resolution)
 
-    if secondPlanetActive:
+    if secondPlanetActive.get():
+        #region statements
         radius = secondPlanetRadiusEntry.get()
         mass = secondPlanetMassEntry.get()
         xPos = secondPlanetXPositionEntry.get()
         yPos = secondPlanetYPositionEntry.get()
         zPos = secondPlanetZPositionEntry.get()
+        xVel = secondPlanetXVelocityEntry.get()
+        yVel = secondPlanetYVelocityEntry.get()
+        zVel = secondPlanetZVelocityEntry.get()
+        #endregion
 
-        if checkPlanetInputVals(radius,mass,xPos,yPos,zPos) == True: 
+        if checkPlanetInputVals(radius,mass,xPos,yPos,zPos,xVel,yVel,zVel) == True: 
+            velocity = [float(xVel),float(yVel),float(zVel)]
+            position = [float(xPos),float(yPos),float(zPos)]
+            planets.append(Planet("Planet 2",float(radius),float(mass),position,velocity))
             genSphere(float(radius),float(xPos), float(yPos), float(zPos),resolution)
     
-    if thirdPlanetActive:
+    if thirdPlanetActive.get():
+        #region statements
         radius = thirdPlanetRadiusEntry.get()
         mass = thirdPlanetMassEntry.get()
         xPos = thirdPlanetXPositionEntry.get()
         yPos = thirdPlanetYPositionEntry.get()
         zPos = thirdPlanetZPositionEntry.get()
+        xVel = thirdPlanetXVelocityEntry.get()
+        yVel = thirdPlanetYVelocityEntry.get()
+        zVel = thirdPlanetZVelocityEntry.get()
+        #endregion
 
-        if checkPlanetInputVals(radius,mass,xPos,yPos,zPos) == True: 
+        if checkPlanetInputVals(radius,mass,xPos,yPos,zPos,xVel,yVel,zVel) == True: 
+            velocity = [float(xVel),float(yVel),float(zVel)]
+            position = [float(xPos),float(yPos),float(zPos)]
+            planets.append(Planet("Planet 3",radius,mass,position,velocity))
             genSphere(float(radius),float(xPos), float(yPos), float(zPos),resolution)
     
     canvas.draw()
+
+def PauseSimulation(): 
+    global paused
+    paused = not paused
+    pauseButton.config(text="Resume Simulation" if paused else "Pause Simulation")
+
+def RunSimulation(): 
+    for i in range(200):  # Run for 1000 time steps
+        if paused:
+            root.update_idletasks()
+            root.update()
+            time.sleep(0.1)
+        else: 
+            for planet in planets:
+                planet.updatePosition()
+        # Update the plot with new positions
+
+        #Resets/keeps setting on axes
+        ax.clear()
+        halfPlotSize = plotSize / 2
+        ax.set_xlim([-halfPlotSize, halfPlotSize])
+        ax.set_ylim([-halfPlotSize, halfPlotSize])
+        ax.set_zlim([-halfPlotSize, halfPlotSize])
+        ax.set_box_aspect([1, 1, 1])
+
+        for planet in planets:
+            planet.draw(ax)
+        
+        canvas.draw()
+        canvas.flush_events()
+        root.update_idletasks()
+        root.update()  
+        time.sleep(0.01)  
+
+#region Physics Formulas
+
+def GravitationalForce(mass1,mass2,distance): 
+    G = 6.67430e-11
+    return ((G*mass1*mass2)/distance**2)
     
+#endregion Physics Formulas
+
+class Planet:
+    def __init__(self, name, radius, mass, position, velocity):
+        self.name = name
+        self.radius = radius
+        self.mass = mass
+        self.position = np.array(position)  # [x, y, z]
+        self.velocity = np.array(velocity)  # [vx, vy, vz]
+        self.history = [self.position.copy()] 
+
+    def updatePosition(self):
+        self.position += self.velocity * timestep
+        self.history.append(self.position.copy())
+
+    def calculateDistance(self, other_planet):
+        return np.linalg.norm(self.position - other_planet.position)
+
+    def draw(self, ax):
+        genSphere(float(self.radius), float(self.position[0]), float(self.position[1]), float(self.position[2]), resolution)
+        if len(self.history) > 1:
+            history_array = np.array(self.history)
+            ax.plot(history_array[:, 0], history_array[:, 1], history_array[:, 2], 'r-', alpha=0.5)
+
+#region tkinterConfig
 matplotlib.use('TkAgg')
 style.use("dark_background")
 
@@ -106,7 +204,7 @@ inputFrame.pack(pady=5)
 firstPlanetActive = tk.IntVar()
 secondPlanetActive = tk.IntVar()
 thirdPlanetActive = tk.IntVar()
-
+#endregion
 #region firstInputField
 
 specificPlanetInputFrame = tk.Frame(inputFrame)
@@ -118,7 +216,7 @@ planetNameLabel.pack(side=tk.LEFT,padx=5)
 firstPlanetActivationCheckbox = tk.Checkbutton(specificPlanetInputFrame, variable=firstPlanetActive, onvalue=1, offvalue=0)
 firstPlanetActivationCheckbox.pack(side=tk.LEFT,padx=3)
 
-radiusLabel = tk.Label(specificPlanetInputFrame, text=f"Radius [{radiusLowerLim}-{radiusUpperLim}]:")
+radiusLabel = tk.Label(specificPlanetInputFrame, text=f"Radius [{radiusLowerLim}-{radiusUpperLim}]km:")
 radiusLabel.pack(side=tk.LEFT, padx=5)
 firstPlanetRadiusEntry = tk.Entry(specificPlanetInputFrame, width=5)
 firstPlanetRadiusEntry.pack(side=tk.LEFT, padx=5)
@@ -130,12 +228,21 @@ firstPlanetMassEntry.pack(side=tk.LEFT, padx=5)
 
 positionLabel = tk.Label(specificPlanetInputFrame, text="Position [x,y,z]:")
 positionLabel.pack(side=tk.LEFT, padx=5)
-firstPlanetXPositionEntry = tk.Entry(specificPlanetInputFrame, width=3)
+firstPlanetXPositionEntry = tk.Entry(specificPlanetInputFrame, width=5)
 firstPlanetXPositionEntry.pack(side=tk.LEFT, padx=5)
-firstPlanetYPositionEntry = tk.Entry(specificPlanetInputFrame, width=3)
+firstPlanetYPositionEntry = tk.Entry(specificPlanetInputFrame, width=5)
 firstPlanetYPositionEntry.pack(side=tk.LEFT, padx=5)
-firstPlanetZPositionEntry = tk.Entry(specificPlanetInputFrame, width=3)
+firstPlanetZPositionEntry = tk.Entry(specificPlanetInputFrame, width=5)
 firstPlanetZPositionEntry.pack(side=tk.LEFT, padx=5)
+
+velocityLabel = tk.Label(specificPlanetInputFrame, text="Initial Velocity [vx,vy,vz]:")
+velocityLabel.pack(side=tk.LEFT, padx=5)
+firstPlanetXVelocityEntry = tk.Entry(specificPlanetInputFrame, width=5)
+firstPlanetXVelocityEntry.pack(side=tk.LEFT, padx=5)
+firstPlanetYVelocityEntry = tk.Entry(specificPlanetInputFrame, width=5)
+firstPlanetYVelocityEntry.pack(side=tk.LEFT, padx=5)
+firstPlanetZVelocityEntry = tk.Entry(specificPlanetInputFrame, width=5)
+firstPlanetZVelocityEntry.pack(side=tk.LEFT, padx=5)
 
 #endregion 
 #region secondInputField
@@ -148,7 +255,7 @@ planetNameLabel.pack(side=tk.LEFT,padx=5)
 secondPlanetActivationCheckbox = tk.Checkbutton(specificPlanetInputFrame, variable=secondPlanetActive, onvalue=1, offvalue=0)
 secondPlanetActivationCheckbox.pack(side=tk.LEFT,padx=3)
 
-radiusLabel = tk.Label(specificPlanetInputFrame, text=f"Radius [{radiusLowerLim}-{radiusUpperLim}]:")
+radiusLabel = tk.Label(specificPlanetInputFrame, text=f"Radius [{radiusLowerLim}-{radiusUpperLim}]km:")
 radiusLabel.pack(side=tk.LEFT, padx=5)
 secondPlanetRadiusEntry = tk.Entry(specificPlanetInputFrame, width=5)
 secondPlanetRadiusEntry.pack(side=tk.LEFT, padx=5)
@@ -160,12 +267,22 @@ secondPlanetMassEntry.pack(side=tk.LEFT, padx=5)
 
 positionLabel = tk.Label(specificPlanetInputFrame, text="Position [x,y,z]:")
 positionLabel.pack(side=tk.LEFT, padx=5)
-secondPlanetXPositionEntry = tk.Entry(specificPlanetInputFrame, width=3)
+secondPlanetXPositionEntry = tk.Entry(specificPlanetInputFrame, width=5)
 secondPlanetXPositionEntry.pack(side=tk.LEFT, padx=5)
-secondPlanetYPositionEntry = tk.Entry(specificPlanetInputFrame, width=3)
+secondPlanetYPositionEntry = tk.Entry(specificPlanetInputFrame, width=5)
 secondPlanetYPositionEntry.pack(side=tk.LEFT, padx=5)
-secondPlanetZPositionEntry = tk.Entry(specificPlanetInputFrame, width=3)
+secondPlanetZPositionEntry = tk.Entry(specificPlanetInputFrame, width=5)
 secondPlanetZPositionEntry.pack(side=tk.LEFT, padx=5)
+
+velocityLabel = tk.Label(specificPlanetInputFrame, text="Initial Velocity [vx,vy,vz]:")
+velocityLabel.pack(side=tk.LEFT, padx=5)
+secondPlanetXVelocityEntry = tk.Entry(specificPlanetInputFrame, width=5)
+secondPlanetXVelocityEntry.pack(side=tk.LEFT, padx=5)
+secondPlanetYVelocityEntry = tk.Entry(specificPlanetInputFrame, width=5)
+secondPlanetYVelocityEntry.pack(side=tk.LEFT, padx=5)
+secondPlanetZVelocityEntry = tk.Entry(specificPlanetInputFrame, width=5)
+secondPlanetZVelocityEntry.pack(side=tk.LEFT, padx=5)
+
 #endregion
 #region thirdInputField
 specificPlanetInputFrame = tk.Frame(inputFrame)
@@ -177,7 +294,7 @@ planetNameLabel.pack(side=tk.LEFT,padx=5)
 thirdPlanetActivationCheckbox = tk.Checkbutton(specificPlanetInputFrame, variable=thirdPlanetActive, onvalue=1, offvalue=0)
 thirdPlanetActivationCheckbox.pack(side=tk.LEFT,padx=3)
 
-radiusLabel = tk.Label(specificPlanetInputFrame, text=f"Radius [{radiusLowerLim}-{radiusUpperLim}]:")
+radiusLabel = tk.Label(specificPlanetInputFrame, text=f"Radius [{radiusLowerLim}-{radiusUpperLim}]km:")
 radiusLabel.pack(side=tk.LEFT, padx=5)
 thirdPlanetRadiusEntry = tk.Entry(specificPlanetInputFrame, width=5)
 thirdPlanetRadiusEntry.pack(side=tk.LEFT, padx=5)
@@ -189,26 +306,29 @@ thirdPlanetMassEntry.pack(side=tk.LEFT, padx=5)
 
 positionLabel = tk.Label(specificPlanetInputFrame, text="Position [x,y,z]:")
 positionLabel.pack(side=tk.LEFT, padx=5)
-thirdPlanetXPositionEntry = tk.Entry(specificPlanetInputFrame, width=3)
+thirdPlanetXPositionEntry = tk.Entry(specificPlanetInputFrame, width=5)
 thirdPlanetXPositionEntry.pack(side=tk.LEFT, padx=5)
-thirdPlanetYPositionEntry = tk.Entry(specificPlanetInputFrame, width=3)
+thirdPlanetYPositionEntry = tk.Entry(specificPlanetInputFrame, width=5)
 thirdPlanetYPositionEntry.pack(side=tk.LEFT, padx=5)
-thirdPlanetZPositionEntry = tk.Entry(specificPlanetInputFrame, width=3)
+thirdPlanetZPositionEntry = tk.Entry(specificPlanetInputFrame, width=5)
 thirdPlanetZPositionEntry.pack(side=tk.LEFT, padx=5)
+
+velocityLabel = tk.Label(specificPlanetInputFrame, text="Initial Velocity [vx,vy,vz]:")
+velocityLabel.pack(side=tk.LEFT, padx=5)
+thirdPlanetXVelocityEntry = tk.Entry(specificPlanetInputFrame, width=5)
+thirdPlanetXVelocityEntry.pack(side=tk.LEFT, padx=5)
+thirdPlanetYVelocityEntry = tk.Entry(specificPlanetInputFrame, width=5)
+thirdPlanetYVelocityEntry.pack(side=tk.LEFT, padx=5)
+thirdPlanetZVelocityEntry = tk.Entry(specificPlanetInputFrame, width=5)
+thirdPlanetZVelocityEntry.pack(side=tk.LEFT, padx=5)
 #endregion
 
 runButtonFrame = tk.Frame(inputFrame)
 runButtonFrame.pack(pady=5)
 
 tk.Button(runButtonFrame, text="Generate Planets", command=plot).pack(side=tk.LEFT,padx=5)
-tk.Button(runButtonFrame, text="Run Simulation",).pack(side=tk.LEFT,padx=5)
-
-
-class Planet: 
-    def __init__(self,planetaryRadius,mass,position): 
-        self.planetaryRadius = planetaryRadius
-        self.mass = mass
-        self.position = position
-
+tk.Button(runButtonFrame, text="Run Simulation",command=RunSimulation).pack(side=tk.LEFT,padx=5)
+pauseButton = tk.Button(runButtonFrame, text="Pause Simulation",command=PauseSimulation)
+pauseButton.pack(side=tk.LEFT,padx=5)
 
 root.mainloop()
