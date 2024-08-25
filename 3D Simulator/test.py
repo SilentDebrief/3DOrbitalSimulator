@@ -1,4 +1,5 @@
 from ast import Or
+import math
 from turtle import width
 import matplotlib
 import time
@@ -7,6 +8,7 @@ import matplotlib.pyplot as plt
 import tkinter as tk
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
 from matplotlib import style
 from mpl_toolkits.mplot3d import Axes3D
 from tkinter import messagebox
@@ -14,13 +16,13 @@ from tkinter import messagebox
 radiusUpperLim = 0.5
 radiusLowerLim = 0 
 plotSize = 10 #AU
-timestep = 60*10
-resolution = 100
+timestep = 60*60*24*10 #10 days
+resolution = 20
 planets = []
 paused = False # is sim paused? 
 massScaleFactor = 1e23 
 
-def genSphere(radius, xCenter,yCenter,zCenter,resolution,):
+def genSphere(radius, xCenter,yCenter,zCenter,resolution,planet):
     radiusAU = MtoAU(radius)
     u = np.linspace(0, 2 * np.pi, resolution)
     v = np.linspace(0, np.pi, resolution)
@@ -30,7 +32,14 @@ def genSphere(radius, xCenter,yCenter,zCenter,resolution,):
     x = radiusAU * np.sin(v) * np.cos(u) + MtoAU(xCenter)
     y = radiusAU * np.sin(v) * np.sin(u) + MtoAU(yCenter)
     z = radiusAU * np.cos(v) + MtoAU(zCenter)
-    ax.plot_surface(x,y,z)
+    colormap = ""
+    if planet.name == "Planet 1": 
+        colormap = 'magma'
+    elif planet.name == "Planet 2":
+        colormap = 'viridis'
+    else: 
+        colormap = 'cividis'
+    ax.plot_surface(x,y,z,cmap=colormap)
 
 def checkPlanetInputVals(radius,mass,xPos,yPos,zPos,xVel,yVel,zVel): 
     try: 
@@ -79,7 +88,7 @@ def plot():
             position = [float(xPos),float(yPos),float(zPos)]
             scaledMass = float(mass)*massScaleFactor
             planets.append(Planet("Planet 1",float(radius),scaledMass,position,velocity))
-            genSphere(float(radius),float(xPos), float(yPos), float(zPos),resolution)
+            genSphere(float(radius),float(xPos), float(yPos), float(zPos),resolution,planets[0])
 
     if secondPlanetActive.get():
         #region statements
@@ -98,7 +107,7 @@ def plot():
             position = [float(xPos),float(yPos),float(zPos)]
             scaledMass = float(mass)*massScaleFactor
             planets.append(Planet("Planet 2",float(radius),scaledMass,position,velocity))
-            genSphere(float(radius),float(xPos), float(yPos), float(zPos),resolution)
+            genSphere(float(radius),float(xPos), float(yPos), float(zPos),resolution,planets[1])
     
     if thirdPlanetActive.get():
         #region statements
@@ -117,7 +126,7 @@ def plot():
             position = [float(xPos),float(yPos),float(zPos)]
             scaledMass = float(mass)*massScaleFactor
             planets.append(Planet("Planet 3",float(radius),scaledMass,position,velocity))
-            genSphere(float(radius),float(xPos), float(yPos), float(zPos),resolution)
+            genSphere(float(radius),float(xPos), float(yPos), float(zPos),resolution,planets[2])
     
     canvas.draw()
 
@@ -128,7 +137,7 @@ def PauseSimulation():
 #MASS for star 100000000000000 SPEED 20000000
 def RunSimulation(): 
     
-    for i in range(300):  # Run for 1000 time steps
+    for i in range(1000):  # Run for 1000 time steps
         if paused:
             root.update_idletasks()
             root.update()
@@ -157,7 +166,7 @@ def RunSimulation():
             canvas.flush_events()
             root.update_idletasks()
             root.update()  
-            time.sleep(0.1)  
+            time.sleep(0.005)  
 
 def AUtoM(AUVal): 
     mVal = AUVal * 149597870700
@@ -192,24 +201,35 @@ class Planet:
         return forceMagnitude*forceDirection
     
     def updateVelocity(self,force): 
-        print(self.name + str(self.velocity))
         acceleration = force/float(self.mass)
-        print(self.name + str(acceleration))
         self.velocity += acceleration * timestep
-        print(self.name + str(self.velocity))
-
-    def calculateDistance(self, otherPlanet):
-        return np.linalg.norm(self.position - otherPlanet.position)
 
     def draw(self, ax):
         genSphere(float(self.radius), 
         float(self.position[0]), 
         float(self.position[1]), 
-        float(self.position[2]), resolution)
+        float(self.position[2]), resolution, self)
         if len(self.history) > 1:
             history_array = np.array(self.history)
             history_array = MtoAU(history_array)
             ax.plot(history_array[:, 0], history_array[:, 1], history_array[:, 2], 'purple', alpha=0.5)
+    
+    def calculateDistance(self, otherPlanet):
+        return np.linalg.norm(self.position - otherPlanet.position)
+
+def topDown(): 
+    ax.view_init(elev=90, azim=-90)
+    canvas.draw()
+def genPosData(): 
+    with open("planet_positions.txt", "w") as file:
+        for planet in planets:
+            file.write(f"{planet.name}\n")
+            file.write("Position History (x, y, z)\n")
+            for pos in planet.history:
+                file.write(f"{pos[0]}, {pos[1]}, {pos[2]}\n")
+            file.write("\n")  
+    tk.messagebox.showinfo("File Created", "Position data has been saved to planet_positions.txt")
+
 
 #region tkinterConfig
 matplotlib.use('TkAgg')
@@ -225,10 +245,14 @@ ax = fig.add_subplot(111, projection='3d')
 fig.tight_layout()
 
 canvas = FigureCanvasTkAgg(fig, master=root)
-canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+canvas.get_tk_widget().pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
+
+toolbar = NavigationToolbar2Tk(canvas, root)
+toolbar.update()
+toolbar.pack(side=tk.TOP, fill=tk.X)
 
 frame = tk.Frame(root)
-frame.pack(side=tk.BOTTOM, fill=tk.X)
+frame.pack(side=tk.BOTTOM, fill=tk.X, before=canvas.get_tk_widget())
 
 inputFrame = tk.Frame(frame)
 inputFrame.pack(pady=5)
@@ -363,5 +387,7 @@ tk.Button(runButtonFrame, text="Generate Planets", command=plot).pack(side=tk.LE
 tk.Button(runButtonFrame, text="Run Simulation",command=RunSimulation).pack(side=tk.LEFT,padx=5)
 pauseButton = tk.Button(runButtonFrame, text="Pause Simulation",command=PauseSimulation)
 pauseButton.pack(side=tk.LEFT,padx=5)
+tk.Button(runButtonFrame, text="2D View",command=topDown).pack(side=tk.LEFT,padx=5)
+tk.Button(runButtonFrame, text="Generate Position File", command=genPosData).pack(side=tk.LEFT,padx=5)
 
 root.mainloop()
